@@ -6,7 +6,10 @@ use error_json::engine_errors_json;
 use jni::objects::{JByteArray, JClass, JObject, JObjectArray, JString, JThrowable, JValue};
 use jni::sys::{jboolean, jbyteArray, jint, jlong, jstring, JNI_FALSE};
 use jni::{jni_sig, jni_str, Env, EnvUnowned};
-use lemma::{DateTimeValue, Engine, ResourceLimits, SourceType};
+use lemma::{
+    DateTimeValue, Engine, GraphDirection, GraphEdgeKind, GraphQueryRequest, ResourceLimits,
+    SourceType,
+};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -210,6 +213,54 @@ fn parse_effective(env: &mut Env, effective: &JString) -> Result<Option<DateTime
         Err(message) => {
             throw_bug(env, &message);
             return Err(());
+        }
+
+        fn optional_string_array(
+            env: &mut Env,
+            values: &JObjectArray,
+            field: &str,
+        ) -> Result<Option<Vec<String>>, String> {
+            if values.is_null() {
+                return Ok(None);
+            }
+            let len = values
+                .len(env)
+                .map_err(|e| format!("BUG: get_array_length {field}: {e}"))?;
+            let mut out = Vec::with_capacity(len);
+            for i in 0..len {
+                let obj = values
+                    .get_element(env, i)
+                    .map_err(|e| format!("BUG: get {field}[{i}]: {e}"))?;
+                out.push(jstring_required(env, &jstring_from_object(env, obj)?)?);
+            }
+            Ok(Some(out))
+        }
+
+        fn optional_boxed_int(env: &mut Env, value: &JObject, field: &str) -> Result<Option<usize>, String> {
+            if value.is_null() {
+                return Ok(None);
+            }
+            let result = env
+                .call_method(value, jni_str!("intValue"), jni_sig!("()I"), &[])
+                .map_err(|e| format!("BUG: call Integer.intValue for {field}: {e}"))?
+                .i()
+                .map_err(|e| format!("BUG: read Integer.intValue result for {field}: {e}"))?;
+            if result < 0 {
+                return Err(format!("BUG: {field} must be >= 0"));
+            }
+            Ok(Some(result as usize))
+        }
+
+        fn optional_boxed_bool(env: &mut Env, value: &JObject, field: &str) -> Result<Option<bool>, String> {
+            if value.is_null() {
+                return Ok(None);
+            }
+            let result = env
+                .call_method(value, jni_str!("booleanValue"), jni_sig!("()Z"), &[])
+                .map_err(|e| format!("BUG: call Boolean.booleanValue for {field}: {e}"))?
+                .z()
+                .map_err(|e| format!("BUG: read Boolean.booleanValue result for {field}: {e}"))?;
+            Ok(Some(result))
         }
     };
     let Some(raw) = raw else {
@@ -466,6 +517,101 @@ pub extern "system" fn Java_com_lemmabase_lemma_Native_source(
                 throw_lemma_exception(
                     env,
                     "source failed",
+                    &engine_errors_json(std::slice::from_ref(&err)),
+                );
+                Ok(std::ptr::null_mut())
+            }
+        }
+    })
+}
+
+#[no_mangle]
+pub extern "system" fn Java_com_lemmabase_lemma_Native_graphQuery(
+    mut unowned: EnvUnowned,
+    _class: JClass,
+    handle: jlong,
+    repository: JString,
+    spec: JString,
+    effective: JString,
+    roots: JObjectArray,
+    edge_kinds: JObjectArray,
+    direction: JString,
+    max_depth: JObject,
+    max_nodes: JObject,
+    include_metadata: JObject,
+) -> jstring {
+    with_catch(&mut unowned, |env| {
+        let engine = handle_from_jlong(handle)?;
+        let repo = jstring_optional(env, &repository)?;
+        let spec = jstring_required(env, &spec)?;
+        let effective = match parse_effective(env, &effective) {
+            Ok(v) => v,
+            Err(()) => return Ok(std::ptr::null_mut()),
+        };
+
+        let roots = optional_string_array(env, &roots, "roots")?;
+        let edge_kinds = match optional_string_array(env, &edge_kinds, "edge_kinds")? {
+            None => None,
+            Some(values) => {
+                let mut parsed = Vec::with_capacity(values.len());
+                for value in values {
+                    match GraphEdgeKind::parse(&value) {
+                        Ok(kind) => parsed.push(kind),
+                        Err(message) => {
+                            let err = lemma::Error::request(message, None::<String>);
+                            throw_lemma_exception(
+                                env,
+                                "graphQuery failed",
+                                &engine_errors_json(std::slice::from_ref(&err)),
+                            );
+                            return Ok(std::ptr::null_mut());
+                        }
+                    }
+                }
+                Some(parsed)
+            }
+        };
+        let direction = match jstring_optional(env, &direction)? {
+            None => None,
+            Some(value) => match GraphDirection::parse(&value) {
+                Ok(parsed) => Some(parsed),
+                Err(message) => {
+                    let err = lemma::Error::request(message, None::<String>);
+                    throw_lemma_exception(
+                        env,
+                        "graphQuery failed",
+                        &engine_errors_json(std::slice::from_ref(&err)),
+                    );
+                    return Ok(std::ptr::null_mut());
+                }
+            },
+        };
+        let max_depth = optional_boxed_int(env, &max_depth, "maxDepth")?;
+        let max_nodes = optional_boxed_int(env, &max_nodes, "maxNodes")?;
+        let include_metadata = optional_boxed_bool(env, &include_metadata, "includeMetadata")?;
+
+        let query = GraphQueryRequest {
+            roots,
+            edge_kinds,
+            direction,
+            max_depth,
+            max_nodes,
+            include_metadata,
+        };
+
+        let guard = engine
+            .lock()
+            .map_err(|_| "BUG: Engine lock poisoned".to_string())?;
+        match guard.graph_query(repo.as_deref(), &spec, effective.as_ref(), query) {
+            Ok(response) => {
+                let json = serde_json::to_string(&lemma::api::GraphQueryResponse::from(&response))
+                    .map_err(|e| format!("BUG: graph query serialization failed: {e}"))?;
+                Ok(return_string(env, json))
+            }
+            Err(err) => {
+                throw_lemma_exception(
+                    env,
+                    "graphQuery failed",
                     &engine_errors_json(std::slice::from_ref(&err)),
                 );
                 Ok(std::ptr::null_mut())

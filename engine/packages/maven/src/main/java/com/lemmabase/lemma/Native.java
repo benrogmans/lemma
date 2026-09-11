@@ -63,6 +63,18 @@ final class Native {
 
   static native String source(long handle, String repository, String spec, String effective);
 
+  static native String graphQuery(
+      long handle,
+      String repository,
+      String spec,
+      String effective,
+      String[] roots,
+      String[] edgeKinds,
+      String direction,
+      Integer maxDepth,
+      Integer maxNodes,
+      Boolean includeMetadata);
+
   static native String run(
       long handle,
       String repository,

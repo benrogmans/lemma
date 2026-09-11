@@ -96,6 +96,60 @@ pub fn list_tools() -> Vec<ToolDefinition> {
             }),
         },
         ToolDefinition {
+            name: "graph_query",
+            description: "Query semantic graph slices for a spec at one effective instant. Supports rule dependency edges, data-reference dependency edges, and rule-to-data usage edges with bounded traversal.",
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "spec": {
+                        "type": "string",
+                        "description": "Spec set id, e.g. pricing"
+                    },
+                    "repository": {
+                        "type": "string",
+                        "description": "Optional repository qualifier (e.g. lemma, @org/repo). Omit for workspace."
+                    },
+                    "effective": {
+                        "type": "string",
+                        "description": "Optional: query at a specific effective datetime"
+                    },
+                    "roots": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Optional node ids to traverse from. Omit for a bounded prefix of the full graph."
+                    },
+                    "edge_kinds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["rule_depends_on_rule", "data_depends_on_data", "rule_uses_data"]
+                        },
+                        "description": "Optional edge kinds. Omit for all semantic edge kinds."
+                    },
+                    "direction": {
+                        "type": "string",
+                        "enum": ["outbound", "inbound", "both"],
+                        "description": "Traversal direction when roots are provided."
+                    },
+                    "max_depth": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Maximum traversal depth from roots."
+                    },
+                    "max_nodes": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Maximum number of nodes in the response."
+                    },
+                    "include_metadata": {
+                        "type": "boolean",
+                        "description": "Include per-node metadata fields."
+                    }
+                },
+                "required": ["spec"]
+            }),
+        },
+        ToolDefinition {
             name: "source",
             description: "Return formatted Lemma source. Pass `repository` (e.g. `lemma` for embedded units stdlib) for the whole repo, or `spec` for a workspace or repository spec. After add_spec / update_spec, call this and paste the result in chat for user verify; do not present the draft you authored.",
             input_schema: serde_json::json!({

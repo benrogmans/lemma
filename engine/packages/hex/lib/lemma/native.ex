@@ -29,6 +29,9 @@ defmodule Lemma.Native do
 
   def lemma_run(_resource, _target, _options), do: :erlang.nif_error(:nif_not_loaded)
 
+  def lemma_graph_query(_resource, _repository, _spec, _effective, _query_json),
+    do: :erlang.nif_error(:nif_not_loaded)
+
   def lemma_remove(_resource, _repository, _spec_name, _effective),
     do: :erlang.nif_error(:nif_not_loaded)
 

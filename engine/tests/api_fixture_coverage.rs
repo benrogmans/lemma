@@ -138,6 +138,18 @@ fn show_minimal_fixture_deserializes_as_lemma_show() {
     assert_eq!(show.spec, "sample");
 }
 
+#[test]
+fn graph_query_minimal_fixture_deserializes_as_lemma_graph_query_response() {
+    let path = fixtures_dir().join("graph_query_minimal.json");
+    let text = std::fs::read_to_string(&path).expect("read graph_query_minimal.json");
+    let graph: lemma::api::GraphQueryResponse = serde_json::from_str(&text).unwrap_or_else(|e| {
+        panic!(
+            "fixture must match lemma::api::GraphQueryResponse: {e}\nfixture:\n{text}"
+        )
+    });
+    assert_eq!(graph.spec, "sample");
+}
+
 /// Same Rust field must not have two TypeScript declarations.
 #[test]
 fn lemma_d_ts_effective_from_types_agree_on_show_and_listed_spec() {

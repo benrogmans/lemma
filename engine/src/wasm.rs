@@ -1,4 +1,5 @@
 use crate::error::EngineError;
+use crate::graph_query::{GraphDirection, GraphEdgeKind, GraphQueryRequest};
 use crate::{Engine, Error, ResourceLimits, SourceType};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -239,6 +240,33 @@ impl WasmEngine {
     pub fn quality_wasm(&self) -> Result<JsValue, JsValue> {
         serialize_engine_json(&self.engine.quality())
     }
+
+    /// Query semantic graph structure for one spec slice.
+    #[wasm_bindgen(js_name = graphQuery)]
+    pub fn graph_query_wasm(&self, options: JsValue) -> Result<JsValue, JsValue> {
+        let opts: GraphQueryOptions = serde_wasm_bindgen::from_value(options)
+            .map_err(|e| js_err(format!("invalid graph query options: {e}")))?;
+        let effective_dt =
+            crate::resolve_effective(opts.effective.as_deref()).map_err(|e| error_to_js(&e))?;
+        let repo = opts
+            .repository
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        let query = GraphQueryRequest {
+            roots: opts.roots,
+            edge_kinds: opts.edge_kinds,
+            direction: opts.direction,
+            max_depth: opts.max_depth,
+            max_nodes: opts.max_nodes,
+            include_metadata: opts.include_metadata,
+        };
+        let response = self
+            .engine
+            .graph_query(repo, &opts.spec, Some(&effective_dt), query)
+            .map_err(|e| error_to_js(&e))?;
+        serialize_engine_json(&crate::api::GraphQueryResponse::from(&response))
+    }
 }
 
 fn parse_repo_and_effective(
@@ -264,6 +292,19 @@ struct RunOptions {
     data: Option<serde_json::Value>,
     rules: Option<serde_json::Value>,
     explain: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct GraphQueryOptions {
+    spec: String,
+    repository: Option<String>,
+    effective: Option<String>,
+    roots: Option<Vec<String>>,
+    edge_kinds: Option<Vec<GraphEdgeKind>>,
+    direction: Option<GraphDirection>,
+    max_depth: Option<usize>,
+    max_nodes: Option<usize>,
+    include_metadata: Option<bool>,
 }
 
 fn parse_run_data(data: &Option<serde_json::Value>) -> Result<HashMap<String, String>, String> {

@@ -102,6 +102,11 @@ declare module './lemma.bindings.js' {
      * Evaluate a spec. Pass integers as numbers, decimals as strings in `data`.
      */
     run(options: RunOptions): Response;
+
+    /**
+     * Query semantic graph data for one spec slice.
+     */
+    graphQuery(options: GraphQueryOptions): GraphQueryResponse;
   }
 }
 
@@ -119,6 +124,28 @@ export interface RunOptions {
   rules?: string[] | string | null;
   /** Include explanation tree in response. */
   explain?: boolean;
+}
+
+/** Options for {@link Engine.graphQuery}. */
+export interface GraphQueryOptions {
+  /** Spec name (required). */
+  spec: string;
+  /** Repository qualifier (e.g. `@org/repo`), or omit for workspace. */
+  repository?: string | null;
+  /** ISO datetime for temporal resolution, or omit for now. */
+  effective?: string | null;
+  /** Optional root node ids to traverse from. */
+  roots?: string[];
+  /** Optional edge-kind subset. */
+  edge_kinds?: GraphEdgeKind[];
+  /** Traversal direction for rooted queries. */
+  direction?: GraphDirection;
+  /** Maximum traversal depth. */
+  max_depth?: number;
+  /** Maximum nodes returned. */
+  max_nodes?: number;
+  /** Include node metadata map. */
+  include_metadata?: boolean;
 }
 
 /**
@@ -468,6 +495,37 @@ export interface Show {
   /** Rule result types; measure and ratio entries expose `units[]` like their data counterparts. */
   rules: Record<string, LemmaType>;
   meta: Record<string, LiteralValue>;
+}
+
+export type GraphDirection = "outbound" | "inbound" | "both";
+
+export type GraphEdgeKind =
+  | "rule_depends_on_rule"
+  | "data_depends_on_data"
+  | "rule_uses_data";
+
+export type GraphNodeKind = "rule" | "data";
+
+export interface GraphNode {
+  id: string;
+  kind: GraphNodeKind;
+  name: string;
+  metadata?: Record<string, string>;
+}
+
+export interface GraphEdge {
+  kind: GraphEdgeKind;
+  from: string;
+  to: string;
+}
+
+export interface GraphQueryResponse {
+  spec: string;
+  effective_from?: string;
+  effective_to?: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  truncated: boolean;
 }
 
 /** Slim listed spec row (engine `list`). */

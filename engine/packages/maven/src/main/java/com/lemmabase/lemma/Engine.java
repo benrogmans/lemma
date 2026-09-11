@@ -225,6 +225,41 @@ public final class Engine implements AutoCloseable {
   }
 
   /**
+   * Queries semantic graph data for one spec slice.
+   *
+   * @param request graph query parameters
+   * @return graph query response
+   */
+  public GraphQueryResponse graphQuery(GraphQueryRequest request) {
+    Objects.requireNonNull(request, "request");
+    String[] roots = request.roots() == null ? null : request.roots().toArray(String[]::new);
+    String[] edgeKinds =
+        request.edgeKinds() == null
+            ? null
+            : request.edgeKinds().stream().map(GraphQueryRequest.EdgeKind::wire).toArray(String[]::new);
+    String direction = request.direction() == null ? null : request.direction().wire();
+    String json;
+    state.lock.lock();
+    try {
+      json =
+          Native.graphQuery(
+              state.requireHandle(),
+              request.repository(),
+              request.spec(),
+              request.effective(),
+              roots,
+              edgeKinds,
+              direction,
+              request.maxDepth(),
+              request.maxNodes(),
+              request.includeMetadata());
+    } finally {
+      state.lock.unlock();
+    }
+    return JsonSupport.parseGraphQuery(json);
+  }
+
+  /**
    * Returns raw Lemma source for one spec slice.
    *
    * @param repository repository handle; {@code null} for default

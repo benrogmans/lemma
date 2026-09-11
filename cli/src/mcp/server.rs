@@ -627,6 +627,7 @@ mod imp {
                 "run" | "evaluate" => map_tool_result(lemma::mcp::run(&self.engine, arguments)),
                 "list" => self.tool_list(arguments),
                 "show" => map_tool_result(lemma::mcp::show(&self.engine, arguments)),
+                "graph_query" => map_tool_result(lemma::mcp::graph_query(&self.engine, arguments)),
                 "source" => map_tool_result(lemma::mcp::source(&self.engine, arguments)),
                 "check" => map_tool_result(lemma::mcp::check(arguments)),
                 "guide" => map_tool_result(lemma::mcp::guide(arguments)),

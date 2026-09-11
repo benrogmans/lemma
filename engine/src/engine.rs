@@ -1,5 +1,6 @@
 use crate::evaluation::Evaluator;
 use crate::evaluation::{RunData, RunDataValue};
+use crate::graph_query::{query_execution_plan, GraphQueryRequest, GraphQueryResponse};
 use crate::parsing::ast::{DateTimeValue, LemmaRepository, LemmaSpec};
 use crate::parsing::source::SourceType;
 use crate::parsing::{parse, EffectiveDate};
@@ -677,6 +678,30 @@ impl Engine {
         response.spec_effective_to = plan.effective_to.clone();
 
         Ok(response)
+    }
+
+    /// Query semantic graph edges and nodes for a spec slice.
+    pub fn graph_query(
+        &self,
+        repository: Option<&str>,
+        spec: &str,
+        effective: Option<&DateTimeValue>,
+        query: GraphQueryRequest,
+    ) -> Result<GraphQueryResponse, Error> {
+        let effective_dt = self.effective_or_now(effective);
+        let instant = EffectiveDate::DateTimeValue(effective_dt.clone());
+
+        let plan = self
+            .plans
+            .get_plan(repository, spec, &instant)
+            .ok_or_else(|| {
+                Error::request_not_found(
+                    format!("No execution plan for spec '{spec}' at effective {effective_dt}"),
+                    Some("Ensure sources loaded and planning succeeded".to_string()),
+                )
+            })?;
+
+        query_execution_plan(plan, &query)
     }
 
     fn format_repository_source(&self, repository: Option<&str>) -> Result<String, Error> {

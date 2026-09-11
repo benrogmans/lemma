@@ -1,6 +1,6 @@
 //! Contract: `engine/schemas/api.v1.json` is the schema for Show, Response, list, and errors.
 
-use lemma::{DateTimeValue, Engine, ResourceLimits, SourceType};
+use lemma::{DateTimeValue, Engine, GraphQueryRequest, ResourceLimits, SourceType};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -43,6 +43,17 @@ rule ok: amount
         .expect("load");
     let now = DateTimeValue::now();
     let show = engine.show(None, "sample", Some(&now)).expect("show");
+    let graph = engine
+        .graph_query(
+            None,
+            "sample",
+            Some(&now),
+            GraphQueryRequest {
+                include_metadata: Some(true),
+                ..GraphQueryRequest::default()
+            },
+        )
+        .expect("graph query");
     let response = engine
         .run(
             None,
@@ -81,6 +92,11 @@ rule ok: amount
         (
             "response",
             serde_json::to_value(lemma::api::Response::from(&response)).expect("response"),
+        ),
+        (
+            "graph_query",
+            serde_json::to_value(lemma::api::GraphQueryResponse::from(&graph))
+                .expect("graph_query"),
         ),
         ("list", serde_json::to_value(&list).expect("list")),
         ("errors", serde_json::Value::Array(errors)),

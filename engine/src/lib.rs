@@ -14,6 +14,7 @@ pub(crate) mod engine;
 pub(crate) mod error;
 pub(crate) mod evaluation;
 pub(crate) mod formatting;
+pub mod graph_query;
 pub(crate) mod limits;
 pub(crate) mod literals;
 pub(crate) mod parsing;
@@ -47,6 +48,10 @@ pub use evaluation::explanations::{format_explanation, Cause, Explanation, Expla
 pub use evaluation::response::{Response, RuleResult};
 pub use evaluation::run_data::{
     parse_run_data_object, resolve_run_rules, run_data_value_from_json_value, RunDataValue,
+};
+pub use graph_query::{
+    GraphDirection, GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, GraphQueryRequest,
+    GraphQueryResponse,
 };
 pub use formatting::{format_parse_result, format_source, format_specs};
 pub use limits::{

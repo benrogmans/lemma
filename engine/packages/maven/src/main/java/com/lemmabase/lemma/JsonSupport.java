@@ -46,6 +46,19 @@ final class JsonSupport {
     } catch (IOException e) {
       throw new LemmaBugError("BUG: failed to parse Show JSON: " + e.getMessage());
     }
+
+    /**
+     * Parses a {@link GraphQueryResponse} result.
+     *
+     * @param json graph query JSON object
+     */
+    static GraphQueryResponse parseGraphQuery(String json) {
+      try (JsonParser p = JsonReading.parserFor(json)) {
+        return GraphQueryResponse.read(p);
+      } catch (IOException e) {
+        throw new LemmaBugError("BUG: failed to parse GraphQueryResponse JSON: " + e.getMessage());
+      }
+    }
   }
 
   /**

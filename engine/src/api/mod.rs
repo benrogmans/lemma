@@ -5,11 +5,15 @@
 //! decimal strings). JSON shape for `show` / `run` / SDK documents lives only in
 //! `lemma::api`.
 
+mod graph;
 mod response;
 mod show;
 mod types;
 mod value;
 
+pub use graph::{
+    GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, GraphQueryResponse,
+};
 pub use response::{Response, RuleResult};
 pub use show::{Show, ShowData, ShowVersion};
 pub use types::{

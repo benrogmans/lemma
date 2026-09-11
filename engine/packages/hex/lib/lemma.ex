@@ -175,6 +175,26 @@ defmodule Lemma do
   end
 
   @doc """
+  Queries semantic graph data for one spec slice.
+
+  Positional args: `repository`, `spec`, `effective`, and optional query options map.
+  """
+  @spec graph_query(engine(), repository(), spec_name(), String.t() | nil, map() | nil) ::
+          {:ok, map()} | {:error, term()}
+  def graph_query(engine, repository, spec, effective \\ nil, options \\ nil) do
+    query_json =
+      case options do
+        nil -> nil
+        map when is_map(map) -> Jason.encode!(map)
+      end
+
+    case Lemma.Native.lemma_graph_query(engine, repository, spec, effective, query_json) do
+      {:ok, binary} -> {:ok, Jason.decode!(binary)}
+      err -> err
+    end
+  end
+
+  @doc """
   Removes a temporal spec slice.
 
   Positional args: `repository`, `spec`, `effective`.

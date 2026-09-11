@@ -3,6 +3,7 @@ use serde_json::Value;
 use crate::documentation::{GuideTopic, EVALUATE_GUIDE};
 use crate::engine::{resolve_effective as resolve_effective_datetime, Engine};
 use crate::evaluation::explanations::format_explanation;
+use crate::graph_query::{GraphDirection, GraphEdgeKind, GraphQueryRequest};
 use crate::evaluation::response::Response;
 use crate::mcp::error::ToolError;
 use crate::parse_run_data_object;
@@ -100,6 +101,23 @@ pub fn show(engine: &Engine, args: &Value) -> Result<String, ToolError> {
         .map_err(engine_error_to_diagnostics)?;
     Ok(serde_json::to_string_pretty(&crate::api::Show::from(&show))
         .unwrap_or_else(|error| panic!("BUG: show response must serialize: {error}")))
+}
+
+pub fn graph_query(engine: &Engine, args: &Value) -> Result<String, ToolError> {
+    require_object(args)?;
+    let repository = optional_nonempty_string(args, "repository")?;
+    let spec_set_id = required_string(args, "spec")?;
+    if spec_set_id.is_empty() {
+        return Err(ToolError::invalid_arguments("Spec set id cannot be empty"));
+    }
+    let spec_name = parse_spec_set_id(spec_set_id).map_err(engine_error_to_diagnostics)?;
+    let now = resolve_effective(args)?;
+    let query = parse_graph_query_request(args)?;
+    let response = engine
+        .graph_query(repository, &spec_name, Some(&now), query)
+        .map_err(engine_error_to_diagnostics)?;
+    Ok(serde_json::to_string_pretty(&crate::api::GraphQueryResponse::from(&response))
+        .unwrap_or_else(|error| panic!("BUG: graph_query response must serialize: {error}")))
 }
 
 pub fn source(engine: &Engine, args: &Value) -> Result<String, ToolError> {
@@ -244,6 +262,106 @@ fn resolve_effective(args: &Value) -> Result<DateTimeValue, ToolError> {
     match args.get("effective") {
         None | Some(Value::Null) => {
             resolve_effective_datetime(None).map_err(engine_error_to_diagnostics)
+        }
+
+        fn parse_graph_query_request(args: &Value) -> Result<GraphQueryRequest, ToolError> {
+            let roots = match args.get("roots") {
+                None | Some(Value::Null) => None,
+                Some(Value::Array(items)) => {
+                    let mut roots = Vec::with_capacity(items.len());
+                    for item in items {
+                        let Some(value) = item.as_str() else {
+                            return Err(ToolError::invalid_arguments(
+                                "'roots' must be an array of strings",
+                            ));
+                        };
+                        roots.push(value.to_string());
+                    }
+                    Some(roots)
+                }
+                Some(_) => {
+                    return Err(ToolError::invalid_arguments(
+                        "'roots' must be an array of strings",
+                    ))
+                }
+            };
+
+            let edge_kinds = match args.get("edge_kinds") {
+                None | Some(Value::Null) => None,
+                Some(Value::Array(items)) => {
+                    let mut kinds = Vec::with_capacity(items.len());
+                    for item in items {
+                        let Some(raw) = item.as_str() else {
+                            return Err(ToolError::invalid_arguments(
+                                "'edge_kinds' must be an array of strings",
+                            ));
+                        };
+                        let kind =
+                            GraphEdgeKind::parse(raw).map_err(|message| ToolError::invalid_arguments(message))?;
+                        kinds.push(kind);
+                    }
+                    Some(kinds)
+                }
+                Some(_) => {
+                    return Err(ToolError::invalid_arguments(
+                        "'edge_kinds' must be an array of strings",
+                    ))
+                }
+            };
+
+            let direction = match args.get("direction") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(raw)) => Some(
+                    GraphDirection::parse(raw)
+                        .map_err(|message| ToolError::invalid_arguments(message))?,
+                ),
+                Some(_) => {
+                    return Err(ToolError::invalid_arguments(
+                        "'direction' must be a string",
+                    ))
+                }
+            };
+
+            let max_depth = match args.get("max_depth") {
+                None | Some(Value::Null) => None,
+                Some(Value::Number(number)) => {
+                    let value = number
+                        .as_u64()
+                        .ok_or_else(|| ToolError::invalid_arguments("'max_depth' must be >= 0"))?;
+                    Some(value as usize)
+                }
+                Some(_) => return Err(ToolError::invalid_arguments("'max_depth' must be an integer")),
+            };
+
+            let max_nodes = match args.get("max_nodes") {
+                None | Some(Value::Null) => None,
+                Some(Value::Number(number)) => {
+                    let value = number
+                        .as_u64()
+                        .ok_or_else(|| ToolError::invalid_arguments("'max_nodes' must be >= 1"))?;
+                    Some(value as usize)
+                }
+                Some(_) => return Err(ToolError::invalid_arguments("'max_nodes' must be an integer")),
+            };
+
+            let include_metadata = match args.get("include_metadata") {
+                None | Some(Value::Null) => None,
+                Some(Value::Bool(value)) => Some(*value),
+                Some(_) => {
+                    return Err(ToolError::invalid_arguments(
+                        "'include_metadata' must be a boolean",
+                    ))
+                }
+            };
+
+            Ok(GraphQueryRequest {
+                roots,
+                edge_kinds,
+                direction,
+                max_depth,
+                max_nodes,
+                include_metadata,
+            })
         }
         Some(Value::String(raw)) => {
             resolve_effective_datetime(Some(raw)).map_err(engine_error_to_diagnostics)
