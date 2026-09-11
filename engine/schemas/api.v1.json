@@ -1368,7 +1368,6 @@
         "kind": {
           "enum": [
             "rule_depends_on_rule",
-            "data_depends_on_data",
             "rule_uses_data"
           ]
         },

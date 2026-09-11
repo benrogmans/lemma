@@ -26,11 +26,6 @@
       "to": "rule:ok"
     },
     {
-      "kind": "data_depends_on_data",
-      "from": "data:amount",
-      "to": "data:amount"
-    },
-    {
       "kind": "rule_uses_data",
       "from": "rule:ok",
       "to": "data:amount"

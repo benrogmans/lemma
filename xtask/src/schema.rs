@@ -498,7 +498,7 @@ pub fn api_v1_schema() -> Value {
             "required": ["kind", "from", "to"],
             "additionalProperties": false,
             "properties": {
-                "kind": {"enum": ["rule_depends_on_rule", "data_depends_on_data", "rule_uses_data"]},
+                "kind": {"enum": ["rule_depends_on_rule", "rule_uses_data"]},
                 "from": {"type": "string"},
                 "to": {"type": "string"}
             }

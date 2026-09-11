@@ -28,7 +28,6 @@ public final class GraphQueryRequest {
   /** Semantic edge kinds. */
   public enum EdgeKind {
     RULE_DEPENDS_ON_RULE("rule_depends_on_rule"),
-    DATA_DEPENDS_ON_DATA("data_depends_on_data"),
     RULE_USES_DATA("rule_uses_data");
 
     private final String wire;

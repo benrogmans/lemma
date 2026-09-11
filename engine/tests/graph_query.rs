@@ -42,22 +42,6 @@ fn graph_query_returns_semantic_edges() {
         .edges
         .iter()
         .any(|edge| edge.kind == GraphEdgeKind::RuleUsesData));
-
-    let data_only = engine
-        .graph_query(
-            None,
-            "graph_query",
-            Some(&now),
-            GraphQueryRequest {
-                edge_kinds: Some(vec![GraphEdgeKind::DataDependsOnData]),
-                ..GraphQueryRequest::default()
-            },
-        )
-        .expect("data dependency query");
-    assert!(data_only
-        .edges
-        .iter()
-        .all(|edge| edge.kind == GraphEdgeKind::DataDependsOnData));
 }
 
 #[test]

@@ -501,7 +501,6 @@ export type GraphDirection = "outbound" | "inbound" | "both";
 
 export type GraphEdgeKind =
   | "rule_depends_on_rule"
-  | "data_depends_on_data"
   | "rule_uses_data";
 
 export type GraphNodeKind = "rule" | "data";

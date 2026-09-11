@@ -36,7 +36,6 @@ impl GraphDirection {
 #[serde(rename_all = "snake_case")]
 pub enum GraphEdgeKind {
     RuleDependsOnRule,
-    DataDependsOnData,
     RuleUsesData,
 }
 
@@ -44,11 +43,10 @@ impl GraphEdgeKind {
     pub fn parse(raw: &str) -> Result<Self, String> {
         match raw.trim().to_ascii_lowercase().as_str() {
             "rule_depends_on_rule" => Ok(Self::RuleDependsOnRule),
-            "data_depends_on_data" => Ok(Self::DataDependsOnData),
             "rule_uses_data" => Ok(Self::RuleUsesData),
             _ => Err(format!(
                 "invalid graph edge kind '{raw}'; expected one of: \
-                 rule_depends_on_rule, data_depends_on_data, rule_uses_data"
+                 rule_depends_on_rule, rule_uses_data"
             )),
         }
     }
@@ -109,7 +107,6 @@ impl GraphQueryRequest {
         let edge_kinds = self.edge_kinds.clone().unwrap_or_else(|| {
             vec![
                 GraphEdgeKind::RuleDependsOnRule,
-                GraphEdgeKind::DataDependsOnData,
                 GraphEdgeKind::RuleUsesData,
             ]
         });
@@ -363,22 +360,6 @@ fn build_full_graph(
                     kind: GraphEdgeKind::RuleDependsOnRule,
                     from: from.clone(),
                     to: rule_id(dependency),
-                });
-            }
-        }
-    }
-
-    if enabled.contains(&GraphEdgeKind::DataDependsOnData) {
-        for (path, definition) in &plan.data {
-            if let DataDefinition::Reference {
-                target: crate::planning::semantics::ReferenceTarget::Data(target),
-                ..
-            } = definition
-            {
-                edges.push(GraphEdge {
-                    kind: GraphEdgeKind::DataDependsOnData,
-                    from: data_id(path),
-                    to: data_id(target),
                 });
             }
         }

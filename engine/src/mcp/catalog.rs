@@ -97,7 +97,7 @@ pub fn list_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "graph_query",
-            description: "Query semantic graph slices for a spec at one effective instant. Supports rule dependency edges, data-reference dependency edges, and rule-to-data usage edges with bounded traversal.",
+            description: "Query semantic graph slices for a spec at one effective instant. Supports rule dependency edges and rule-to-data usage edges with bounded traversal.",
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {
@@ -122,7 +122,7 @@ pub fn list_tools() -> Vec<ToolDefinition> {
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["rule_depends_on_rule", "data_depends_on_data", "rule_uses_data"]
+                            "enum": ["rule_depends_on_rule", "rule_uses_data"]
                         },
                         "description": "Optional edge kinds. Omit for all semantic edge kinds."
                     },

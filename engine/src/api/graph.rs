@@ -28,7 +28,6 @@ impl From<DomainGraphNodeKind> for GraphNodeKind {
 #[serde(rename_all = "snake_case")]
 pub enum GraphEdgeKind {
     RuleDependsOnRule,
-    DataDependsOnData,
     RuleUsesData,
 }
 
@@ -36,7 +35,6 @@ impl From<DomainGraphEdgeKind> for GraphEdgeKind {
     fn from(value: DomainGraphEdgeKind) -> Self {
         match value {
             DomainGraphEdgeKind::RuleDependsOnRule => Self::RuleDependsOnRule,
-            DomainGraphEdgeKind::DataDependsOnData => Self::DataDependsOnData,
             DomainGraphEdgeKind::RuleUsesData => Self::RuleUsesData,
         }
     }
