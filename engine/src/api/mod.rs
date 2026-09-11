@@ -11,9 +11,7 @@ mod show;
 mod types;
 mod value;
 
-pub use graph::{
-    GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, GraphQueryResponse,
-};
+pub use graph::{GraphEdge, GraphEdgeKind, GraphNode, GraphNodeKind, GraphQueryResponse};
 pub use response::{Response, RuleResult};
 pub use show::{Show, ShowData, ShowVersion};
 pub use types::{

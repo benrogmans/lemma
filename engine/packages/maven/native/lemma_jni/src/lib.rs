@@ -214,54 +214,6 @@ fn parse_effective(env: &mut Env, effective: &JString) -> Result<Option<DateTime
             throw_bug(env, &message);
             return Err(());
         }
-
-        fn optional_string_array(
-            env: &mut Env,
-            values: &JObjectArray,
-            field: &str,
-        ) -> Result<Option<Vec<String>>, String> {
-            if values.is_null() {
-                return Ok(None);
-            }
-            let len = values
-                .len(env)
-                .map_err(|e| format!("BUG: get_array_length {field}: {e}"))?;
-            let mut out = Vec::with_capacity(len);
-            for i in 0..len {
-                let obj = values
-                    .get_element(env, i)
-                    .map_err(|e| format!("BUG: get {field}[{i}]: {e}"))?;
-                out.push(jstring_required(env, &jstring_from_object(env, obj)?)?);
-            }
-            Ok(Some(out))
-        }
-
-        fn optional_boxed_int(env: &mut Env, value: &JObject, field: &str) -> Result<Option<usize>, String> {
-            if value.is_null() {
-                return Ok(None);
-            }
-            let result = env
-                .call_method(value, jni_str!("intValue"), jni_sig!("()I"), &[])
-                .map_err(|e| format!("BUG: call Integer.intValue for {field}: {e}"))?
-                .i()
-                .map_err(|e| format!("BUG: read Integer.intValue result for {field}: {e}"))?;
-            if result < 0 {
-                return Err(format!("BUG: {field} must be >= 0"));
-            }
-            Ok(Some(result as usize))
-        }
-
-        fn optional_boxed_bool(env: &mut Env, value: &JObject, field: &str) -> Result<Option<bool>, String> {
-            if value.is_null() {
-                return Ok(None);
-            }
-            let result = env
-                .call_method(value, jni_str!("booleanValue"), jni_sig!("()Z"), &[])
-                .map_err(|e| format!("BUG: call Boolean.booleanValue for {field}: {e}"))?
-                .z()
-                .map_err(|e| format!("BUG: read Boolean.booleanValue result for {field}: {e}"))?;
-            Ok(Some(result))
-        }
     };
     let Some(raw) = raw else {
         return Ok(None);
@@ -278,6 +230,75 @@ fn parse_effective(env: &mut Env, effective: &JString) -> Result<Option<DateTime
             Err(())
         }
     }
+}
+
+fn optional_string_array(
+    env: &mut Env,
+    values: &JObjectArray,
+    field: &str,
+) -> Result<Option<Vec<String>>, String> {
+    if values.is_null() {
+        return Ok(None);
+    }
+    let len = values
+        .len(env)
+        .map_err(|e| format!("BUG: get_array_length {field}: {e}"))?;
+    let mut out = Vec::with_capacity(len);
+    for i in 0..len {
+        let obj = values
+            .get_element(env, i)
+            .map_err(|e| format!("BUG: get {field}[{i}]: {e}"))?;
+        out.push(jstring_required(env, &jstring_from_object(env, obj)?)?);
+    }
+    Ok(Some(out))
+}
+
+fn optional_boxed_int(
+    env: &mut Env,
+    value: &JObject,
+    field: &str,
+) -> Result<Option<usize>, OptionalBoxedIntError> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let result = env
+        .call_method(value, jni_str!("intValue"), jni_sig!("()I"), &[])
+        .map_err(|e| {
+            OptionalBoxedIntError::Bug(format!("BUG: call Integer.intValue for {field}: {e}"))
+        })?
+        .i()
+        .map_err(|e| {
+            OptionalBoxedIntError::Bug(format!(
+                "BUG: read Integer.intValue result for {field}: {e}"
+            ))
+        })?;
+    if result < 0 {
+        return Err(OptionalBoxedIntError::Request(format!(
+            "{field} must be >= 0"
+        )));
+    }
+    Ok(Some(result as usize))
+}
+
+enum OptionalBoxedIntError {
+    Bug(String),
+    Request(String),
+}
+
+fn optional_boxed_bool(
+    env: &mut Env,
+    value: &JObject,
+    field: &str,
+) -> Result<Option<bool>, String> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let result = env
+        .call_method(value, jni_str!("booleanValue"), jni_sig!("()Z"), &[])
+        .map_err(|e| format!("BUG: call Boolean.booleanValue for {field}: {e}"))?
+        .z()
+        .map_err(|e| format!("BUG: read Boolean.booleanValue result for {field}: {e}"))?;
+    Ok(Some(result))
 }
 
 fn return_string(env: &mut Env, value: String) -> jstring {
@@ -586,8 +607,32 @@ pub extern "system" fn Java_com_lemmabase_lemma_Native_graphQuery(
                 }
             },
         };
-        let max_depth = optional_boxed_int(env, &max_depth, "maxDepth")?;
-        let max_nodes = optional_boxed_int(env, &max_nodes, "maxNodes")?;
+        let max_depth = match optional_boxed_int(env, &max_depth, "maxDepth") {
+            Ok(value) => value,
+            Err(OptionalBoxedIntError::Request(message)) => {
+                let err = lemma::Error::request(message, None::<String>);
+                throw_lemma_exception(
+                    env,
+                    "graphQuery failed",
+                    &engine_errors_json(std::slice::from_ref(&err)),
+                );
+                return Ok(std::ptr::null_mut());
+            }
+            Err(OptionalBoxedIntError::Bug(message)) => return Err(message),
+        };
+        let max_nodes = match optional_boxed_int(env, &max_nodes, "maxNodes") {
+            Ok(value) => value,
+            Err(OptionalBoxedIntError::Request(message)) => {
+                let err = lemma::Error::request(message, None::<String>);
+                throw_lemma_exception(
+                    env,
+                    "graphQuery failed",
+                    &engine_errors_json(std::slice::from_ref(&err)),
+                );
+                return Ok(std::ptr::null_mut());
+            }
+            Err(OptionalBoxedIntError::Bug(message)) => return Err(message),
+        };
         let include_metadata = optional_boxed_bool(env, &include_metadata, "includeMetadata")?;
 
         let query = GraphQueryRequest {

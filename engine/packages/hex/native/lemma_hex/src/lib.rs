@@ -254,62 +254,6 @@ fn lemma_run<'a>(
                 "rules must not be empty".to_string(),
             )));
         }
-
-        #[rustler::nif(schedule = "DirtyCpu")]
-        fn lemma_graph_query<'a>(
-            env: Env<'a>,
-            resource: ResourceArc<LemmaEngineResource>,
-            repository: Option<String>,
-            spec: String,
-            effective: Option<String>,
-            query_json: Option<String>,
-        ) -> NifResult<Term<'a>> {
-            let engine = resource
-                .0
-                .lock()
-                .map_err(|_| rustler::Error::RaiseTerm(Box::new("Engine lock poisoned".to_string())))?;
-            let effective_dt = match effective {
-                Some(s) => Some(s.parse::<DateTimeValue>().map_err(|e| {
-                    rustler::Error::RaiseTerm(Box::new(format!("Invalid effective date: {}", e)))
-                })?),
-                None => None,
-            };
-            let query = match query_json
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
-                None => GraphQueryRequest::default(),
-                Some(raw) => serde_json::from_str::<GraphQueryRequest>(raw).map_err(|e| {
-                    rustler::Error::RaiseTerm(Box::new(format!("invalid graph_query options JSON: {e}")))
-                })?,
-            };
-            let repo = repository
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty());
-            match engine.graph_query(repo, &spec, effective_dt.as_ref(), query) {
-                Ok(response) => {
-                    let json = serde_json::to_vec(&lemma::api::GraphQueryResponse::from(&response))
-                        .map_err(|e| {
-                            rustler::Error::RaiseTerm(Box::new(format!(
-                                "Graph query serialization failed: {}",
-                                e
-                            )))
-                        })?;
-                    let mut owned = OwnedBinary::new(json.len()).ok_or_else(|| {
-                        rustler::Error::RaiseTerm(Box::new("Binary allocation failed".to_string()))
-                    })?;
-                    owned.as_mut_slice().copy_from_slice(&json);
-                    let binary = rustler::Binary::from_owned(owned, env);
-                    Ok((rustler::Atom::from_str(env, "ok")?, binary).encode(env))
-                }
-                Err(err) => {
-                    let term = encode_error(env, &err)?;
-                    Ok((rustler::Atom::from_str(env, "error")?, term).encode(env))
-                }
-            }
-        }
         Some(names) => Some(names),
     };
     match engine.run(
@@ -324,6 +268,62 @@ fn lemma_run<'a>(
             let json = serde_json::to_vec(&lemma::api::Response::from(&response)).map_err(|e| {
                 rustler::Error::RaiseTerm(Box::new(format!("Response serialization failed: {}", e)))
             })?;
+            let mut owned = OwnedBinary::new(json.len()).ok_or_else(|| {
+                rustler::Error::RaiseTerm(Box::new("Binary allocation failed".to_string()))
+            })?;
+            owned.as_mut_slice().copy_from_slice(&json);
+            let binary = rustler::Binary::from_owned(owned, env);
+            Ok((rustler::Atom::from_str(env, "ok")?, binary).encode(env))
+        }
+        Err(err) => {
+            let term = encode_error(env, &err)?;
+            Ok((rustler::Atom::from_str(env, "error")?, term).encode(env))
+        }
+    }
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn lemma_graph_query<'a>(
+    env: Env<'a>,
+    resource: ResourceArc<LemmaEngineResource>,
+    repository: Option<String>,
+    spec: String,
+    effective: Option<String>,
+    query_json: Option<String>,
+) -> NifResult<Term<'a>> {
+    let engine = resource
+        .0
+        .lock()
+        .map_err(|_| rustler::Error::RaiseTerm(Box::new("Engine lock poisoned".to_string())))?;
+    let effective_dt = match effective {
+        Some(s) => Some(s.parse::<DateTimeValue>().map_err(|e| {
+            rustler::Error::RaiseTerm(Box::new(format!("Invalid effective date: {}", e)))
+        })?),
+        None => None,
+    };
+    let query = match query_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        None => GraphQueryRequest::default(),
+        Some(raw) => serde_json::from_str::<GraphQueryRequest>(raw).map_err(|e| {
+            rustler::Error::RaiseTerm(Box::new(format!("invalid graph_query options JSON: {e}")))
+        })?,
+    };
+    let repo = repository
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    match engine.graph_query(repo, &spec, effective_dt.as_ref(), query) {
+        Ok(response) => {
+            let json = serde_json::to_vec(&lemma::api::GraphQueryResponse::from(&response))
+                .map_err(|e| {
+                    rustler::Error::RaiseTerm(Box::new(format!(
+                        "Graph query serialization failed: {}",
+                        e
+                    )))
+                })?;
             let mut owned = OwnedBinary::new(json.len()).ok_or_else(|| {
                 rustler::Error::RaiseTerm(Box::new("Binary allocation failed".to_string()))
             })?;

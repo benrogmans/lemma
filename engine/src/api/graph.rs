@@ -1,8 +1,9 @@
 //! Graph query JSON shapes.
 
 use crate::graph_query::{
-    GraphEdge as DomainGraphEdge, GraphEdgeKind as DomainGraphEdgeKind, GraphNode as DomainGraphNode,
-    GraphNodeKind as DomainGraphNodeKind, GraphQueryResponse as DomainGraphQueryResponse,
+    GraphEdge as DomainGraphEdge, GraphEdgeKind as DomainGraphEdgeKind,
+    GraphNode as DomainGraphNode, GraphNodeKind as DomainGraphNodeKind,
+    GraphQueryResponse as DomainGraphQueryResponse,
 };
 use crate::parsing::ast::DateTimeValue;
 use serde::{Deserialize, Serialize};

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lemma.dev/schemas/api.v1.json",
   "title": "Lemma engine API",
-  "description": "Schema for the JSON document shapes the engine produces at its consumer boundary: Show (Engine::show), Response (Engine::run), list (Engine::list, array of ResolvedRepository), errors (array of EngineError), and RepositoryInstallResult (SDK install). Explanation trees live under RuleResult.explanation (RuleNode / ExplanationNode).",
+  "description": "Schema for the JSON document shapes the engine produces at its consumer boundary: Show (Engine::show), Response (Engine::run), GraphQueryResponse (Engine::graph_query), list (Engine::list, array of ResolvedRepository), errors (array of EngineError), and RepositoryInstallResult (SDK install). Explanation trees live under RuleResult.explanation (RuleNode / ExplanationNode).",
   "$defs": {
     "DecimalString": {
       "type": "string",
@@ -1327,6 +1327,96 @@
         }
       }
     },
+    "GraphNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "rule",
+            "data"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "GraphEdge": {
+      "type": "object",
+      "required": [
+        "kind",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "rule_depends_on_rule",
+            "data_depends_on_data",
+            "rule_uses_data"
+          ]
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      }
+    },
+    "GraphQueryResponse": {
+      "type": "object",
+      "required": [
+        "spec",
+        "nodes",
+        "edges",
+        "truncated"
+      ],
+      "additionalProperties": false,
+      "description": "Result of Engine::graph_query: bounded semantic graph slice for one spec and effective instant.",
+      "properties": {
+        "spec": {
+          "type": "string"
+        },
+        "effective_from": {
+          "type": "string"
+        },
+        "effective_to": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GraphEdge"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      }
+    },
     "RuleResult": {
       "type": "object",
       "required": [
@@ -1877,6 +1967,9 @@
     },
     {
       "$ref": "#/$defs/Response"
+    },
+    {
+      "$ref": "#/$defs/GraphQueryResponse"
     },
     {
       "type": "array",

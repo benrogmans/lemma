@@ -1956,6 +1956,10 @@ fn test_mcp_tools_list_read_only_tools() {
     assert!(tool_names.contains(&"run"), "Should list run tool");
     assert!(tool_names.contains(&"list"), "Should list list tool");
     assert!(tool_names.contains(&"show"), "Should list show tool");
+    assert!(
+        tool_names.contains(&"graph_query"),
+        "Should list graph_query tool"
+    );
     assert!(tool_names.contains(&"source"), "Should list source tool");
     assert!(tool_names.contains(&"check"), "Should list check tool");
     assert!(tool_names.contains(&"guide"), "Should list guide tool");
@@ -1965,8 +1969,8 @@ fn test_mcp_tools_list_read_only_tools() {
     );
     assert_eq!(
         tool_names.len(),
-        7,
-        "Read-only mode should have exactly 7 tools, got: {:?}",
+        8,
+        "Read-only mode should have exactly 8 tools, got: {:?}",
         tool_names
     );
 }
@@ -2373,13 +2377,17 @@ fn test_mcp_tools_list_write_tools() {
     );
     assert!(tool_names.contains(&"source"), "Should list source tool");
     assert!(
+        tool_names.contains(&"graph_query"),
+        "Should list graph_query tool"
+    );
+    assert!(
         tool_names.contains(&"evaluate"),
         "Should list deprecated evaluate alias"
     );
     assert_eq!(
         tool_names.len(),
-        12,
-        "Write mode should have exactly 12 tools, got: {:?}",
+        13,
+        "Write mode should have exactly 13 tools, got: {:?}",
         tool_names
     );
 }

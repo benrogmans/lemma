@@ -25,28 +25,39 @@ fn graph_query_returns_semantic_edges() {
     let engine = load_sample();
     let now = DateTimeValue::now();
     let response = engine
-        .graph_query(None, "graph_query", Some(&now), GraphQueryRequest::default())
+        .graph_query(
+            None,
+            "graph_query",
+            Some(&now),
+            GraphQueryRequest::default(),
+        )
         .expect("graph query");
 
     assert!(response.nodes.iter().any(|n| n.id == "rule:upstream"));
-    assert!(
-        response
-            .edges
-            .iter()
-            .any(|edge| edge.kind == GraphEdgeKind::RuleDependsOnRule)
-    );
-    assert!(
-        response
-            .edges
-            .iter()
-            .any(|edge| edge.kind == GraphEdgeKind::DataDependsOnData)
-    );
-    assert!(
-        response
-            .edges
-            .iter()
-            .any(|edge| edge.kind == GraphEdgeKind::RuleUsesData)
-    );
+    assert!(response
+        .edges
+        .iter()
+        .any(|edge| edge.kind == GraphEdgeKind::RuleDependsOnRule));
+    assert!(response
+        .edges
+        .iter()
+        .any(|edge| edge.kind == GraphEdgeKind::RuleUsesData));
+
+    let data_only = engine
+        .graph_query(
+            None,
+            "graph_query",
+            Some(&now),
+            GraphQueryRequest {
+                edge_kinds: Some(vec![GraphEdgeKind::DataDependsOnData]),
+                ..GraphQueryRequest::default()
+            },
+        )
+        .expect("data dependency query");
+    assert!(data_only
+        .edges
+        .iter()
+        .all(|edge| edge.kind == GraphEdgeKind::DataDependsOnData));
 }
 
 #[test]

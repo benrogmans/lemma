@@ -186,7 +186,9 @@ pub(crate) fn query_execution_plan(
         .iter()
         .enumerate()
         .filter(|(index, edge)| {
-            traversed_edges.contains(index) && node_ids.contains(&edge.from) && node_ids.contains(&edge.to)
+            traversed_edges.contains(index)
+                && node_ids.contains(&edge.from)
+                && node_ids.contains(&edge.to)
         })
         .map(|(_, edge)| edge.clone())
         .collect();
@@ -201,7 +203,10 @@ pub(crate) fn query_execution_plan(
     })
 }
 
-fn select_default(graph: &FullGraph, max_nodes: usize) -> (IndexSet<String>, IndexSet<usize>, bool) {
+fn select_default(
+    graph: &FullGraph,
+    max_nodes: usize,
+) -> (IndexSet<String>, IndexSet<usize>, bool) {
     let mut node_ids = IndexSet::new();
     let mut truncated = false;
     for node in &graph.nodes {
@@ -238,13 +243,17 @@ fn select_from_roots(
     let mut seen = IndexSet::new();
     let mut traversed_edges = IndexSet::new();
     let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+    let mut truncated = false;
     for root in roots {
+        if seen.len() == query.max_nodes {
+            truncated = true;
+            continue;
+        }
         if seen.insert(root.clone()) {
             queue.push_back((root.clone(), 0));
         }
     }
 
-    let mut truncated = false;
     while let Some((node_id, depth)) = queue.pop_front() {
         if depth >= query.max_depth {
             continue;
@@ -253,7 +262,9 @@ fn select_from_roots(
         let neighbor_lists = match query.direction {
             GraphDirection::Outbound => vec![graph.out_edges.get(&node_id)],
             GraphDirection::Inbound => vec![graph.in_edges.get(&node_id)],
-            GraphDirection::Both => vec![graph.out_edges.get(&node_id), graph.in_edges.get(&node_id)],
+            GraphDirection::Both => {
+                vec![graph.out_edges.get(&node_id), graph.in_edges.get(&node_id)]
+            }
         };
 
         for list in neighbor_lists.into_iter().flatten() {
